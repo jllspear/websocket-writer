@@ -34,7 +34,7 @@ class WebSocketWriter:
 
     def get_parser_from_config(self) -> dict[str, WebSocketParser]:
         parsers = defaultdict(WebSocketParser)
-        for topic, parser_class_name in settings.broker.topics.items():
+        for topic, parser_class_name in settings.websocket.parser_dict.items():
             parser_cls = getattr(self.parser_module, parser_class_name)
             logger.info(f"Custom {parser_cls} found for topic {topic}")
 
