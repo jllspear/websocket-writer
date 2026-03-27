@@ -38,8 +38,6 @@ class WebSocketClient:
             asyncio.create_task(self.message_queue_consumer())
 
         asyncio.create_task(self.subscription_queue_consumer())
-        # VBO to remove@
-        asyncio.create_task(self.test_publisher_worker())
 
         while True:
             try:
@@ -195,98 +193,6 @@ class WebSocketClient:
 
             finally:
                 self.message_queue.task_done()
-
-    # VBO to remove
-    async def test_publisher_worker(self):
-        while True:
-            await self.connected.wait()
-            await asyncio.sleep(2)
-
-            try:
-                payload = {
-                    "id": "id_tracker_1",
-                    "deviceId": "003F004A4652501420303231",
-                    "name": "Forklift 1",
-                    "siteId": "123e4567-e89b-12d3-a456-426614174000",
-                    "siteName": "Warehouse A",
-                    "status": "ONLINE",
-                    "battery": 91
-                }
-
-                frame = (
-                    "SEND\n"
-                    f"destination:{self.main_topic}\n"
-                    "content-type:application/json\n\n"
-                    f"{json.dumps(payload)}\x00"
-                )
-                payload2 = {
-                    "id": "id_tracker_2",
-                    "deviceId": "003F004A4652501420303232",
-                    "name": "Forklift 2",
-                    "siteId": "123e4567-e89b-12d3-a456-426614174000",
-                    "siteName": "Warehouse B",
-                    "status": "ONLINE",
-                    "battery": 92
-                }
-
-                frame2 = (
-                    "SEND\n"
-                    f"destination:{self.main_topic}\n"
-                    "content-type:application/json\n\n"
-                    f"{json.dumps(payload2)}\x00"
-                )
-
-                await self.ws.send(frame)
-                logger.debug("📤 SENT tracker 1 payload")
-                await self.ws.send(frame2)
-                logger.debug("📤 SENT tracker 2 payload")
-
-                await asyncio.sleep(2)
-
-                p_payload = {
-                    "trackerId": "id_tracker_1",
-                    "trackerDeviceId": "WH-TRK-12345",
-                    "siteId": "123e4567-e89b-12d3-a456-426614174000",
-                    "latitude": 41.1111,
-                    "longitude": 2.3521,
-                    "altitude": 35.1,
-                    "timestamp": "2025-10-14T10:15:30.123Z"
-                }
-
-                p_frame = (
-                    "SEND\n"
-                    f"destination:{self.main_topic}/id_tracker_1{self.sub_topic}\n"
-                    "content-type:application/json\n\n"
-                    f"{json.dumps(p_payload)}\x00"
-                )
-
-                p_payload2 = {
-                    "trackerId": "id_tracker_2",
-                    "trackerDeviceId": "WH-TRK-123456",
-                    "siteId": "123e4567-e89b-12d3-a456-426614174000",
-                    "latitude": 42.2222,
-                    "longitude": 2.3522,
-                    "altitude": 35.2,
-                    "timestamp": "2025-10-14T10:15:30.123Z"
-                }
-
-                p_frame2 = (
-                    "SEND\n"
-                    f"destination:{self.main_topic}/id_tracker_2{self.sub_topic}\n"
-                    "content-type:application/json\n\n"
-                    f"{json.dumps(p_payload2)}\x00"
-                )
-
-                await self.ws.send(p_frame)
-                logger.debug("📤 SENT tracker POSITION 1 payload")
-                await self.ws.send(p_frame2)
-                logger.debug("📤 SENT tracker POSITION 2 payload")
-
-                await asyncio.sleep(5)
-
-            except Exception as e:
-                logger.error(f"Publisher error: {e}")
-                await asyncio.sleep(1)
 
 
 def _drain_queue(queue):
