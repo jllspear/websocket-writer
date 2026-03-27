@@ -17,11 +17,10 @@ class WebSocketReader:
     def on_message(self, msg, topic):
         try:
             logger.debug("Received message on topic {}".format(topic))
-            payload = json.loads(msg.payload.decode("utf-8"))
+            logger.debug("Received message {}".format(msg))
 
-            logger.debug("Received payload {}".format(payload))
             parser = self.parsers[topic.split("/")[-1]]
-            parsed_element = parser.parse(payload)
+            parsed_element = parser.parse(msg)
 
             if parsed_element:
                 self.buffer.add(parsed_element)
