@@ -160,19 +160,22 @@ class WebSocketClient:
                         logger.warning(f"Subscription Queue FULL dropping subscription for {subscription_id}")
                     else:
                         await self.subscription_queue.put((topic, message_body))
-            else:
-                if self.message_queue.full():
-                    logger.warning(f"Message Queue FULL dropping oldest")
-                    self.message_queue.get_nowait()
-                    self.message_queue.task_done()
 
-                await self.message_queue.put((topic, message_body))
+            await self._push_message(topic, message_body)
 
             logger.debug(f"MSG Queue size: {self.message_queue.qsize()}")
             logger.debug(f"SUBSCRIPTION Queue size: {self.subscription_queue.qsize()}")
 
         except Exception as e:
             logger.error(f"Parse error (enqueue): {e}")
+
+    async def _push_message(self, topic, message_body):
+        if self.message_queue.full():
+            logger.warning("Message Queue FULL dropping oldest")
+            self.message_queue.get_nowait()
+            self.message_queue.task_done()
+
+        await self.message_queue.put((topic, message_body))
 
     async def message_queue_consumer(self):
         loop = asyncio.get_running_loop()
