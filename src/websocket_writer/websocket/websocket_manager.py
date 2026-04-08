@@ -4,6 +4,7 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 
 import websockets
+from websockets import Subprotocol
 
 from . import auth_manager
 from ..settings import settings
@@ -46,7 +47,7 @@ class WebSocketClient:
                 self.subscription_live.clear()
 
                 logger.info("Connecting to WebSocket")
-                async with websockets.connect(settings.websocket.url) as ws:
+                async with websockets.connect(settings.websocket.url, subprotocols=[Subprotocol("v12.stomp")]) as ws:
                     logger.info("WebSocket connected")
                     self.ws = ws
 
@@ -74,11 +75,16 @@ class WebSocketClient:
             await asyncio.sleep(3)
 
     async def _connect_stomp(self, remote_host, token):
+        if token is None:
+            token_header = "\n\x00"
+        else:
+            token_header = f"Authorization:Bearer {token}\n\n\x00"
+
         frame = (
             "CONNECT\n"
             "accept-version:1.2\n"
             f"host:{remote_host}\n"
-            f"Authorization:Bearer {token}\n\n\x00"
+            f"{token_header}"
         )
         await self.ws.send(frame)
 

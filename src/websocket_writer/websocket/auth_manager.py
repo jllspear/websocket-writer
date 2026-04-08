@@ -15,7 +15,11 @@ class AuthManager:
         self.bearer_token: Optional[str] = None
         self.expires_at: float = 0.0
 
-    async def get_token(self) -> str:
+    async def get_token(self) -> str | None:
+        auth = settings.auth
+        if auth is None or any(x is None for x in (auth.url, auth.client_id, auth.client_secret)):
+            return None
+
         if self._is_token_valid():
             return self.bearer_token
         await self._fetch_token()

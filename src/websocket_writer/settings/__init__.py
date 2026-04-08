@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .websocket import WebSocketSettings
@@ -10,7 +12,7 @@ class Settings(BaseSettings):
     database: DatabaseSettings = None
     websocket: WebSocketSettings = None
     stomp: StompSettings = None
-    auth: AuthSettings = None
+    auth: Optional[AuthSettings] = None
 
     log_level: str = None
 
