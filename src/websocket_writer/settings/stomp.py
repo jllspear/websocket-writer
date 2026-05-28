@@ -5,3 +5,4 @@ class StompSettings(BaseSettings):
     remote_host: str
     main_topic: str
     sub_topic: str
+    sub_topic_from_api: str

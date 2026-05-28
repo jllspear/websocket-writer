@@ -3,6 +3,7 @@ import json
 import logging
 from concurrent.futures import ThreadPoolExecutor
 
+import aiohttp
 import websockets
 from websockets import Subprotocol
 
@@ -22,6 +23,8 @@ class WebSocketClient:
         self.single_topic = False
         if not self.sub_topic:
             self.single_topic = True
+
+        self.sub_topic_from_api = settings.stomp.sub_topic_from_api
 
         self.ws = None
         self.connected = asyncio.Event()
@@ -45,6 +48,9 @@ class WebSocketClient:
                 _drain_queue(self.subscription_queue)
                 _drain_queue(self.message_queue)
                 self.subscription_live.clear()
+
+                if self.sub_topic_from_api:
+                    asyncio.create_task(self.subscribe_from_api())
 
                 logger.info("Connecting to WebSocket")
                 async with websockets.connect(settings.websocket.url, subprotocols=[Subprotocol("v12.stomp")]) as ws:
@@ -76,7 +82,7 @@ class WebSocketClient:
 
     async def _connect_stomp(self, remote_host, token):
         if token is None:
-            token_header = "\n\x00"
+            token_header = "\n\n\x00"
         else:
             token_header = f"Authorization:Bearer {token}\n\n\x00"
 
@@ -179,7 +185,6 @@ class WebSocketClient:
         if self.message_queue.full():
             logger.warning("Message Queue FULL dropping oldest")
             self.message_queue.get_nowait()
-            self.message_queue.task_done()
 
         await self.message_queue.put((topic, message_body))
 
@@ -203,6 +208,33 @@ class WebSocketClient:
             finally:
                 self.message_queue.task_done()
 
+    async def subscribe_from_api(self):
+        await self.connected.wait()
+        token = await auth_manager.get_token()
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                    f"{self.sub_topic_from_api}/{self.main_topic.split("/")[-1]}",
+                    headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"},
+            ) as resp:
+                resp.raise_for_status()
+                body = await resp.json()
+
+        if body:
+            for obj in body:
+                subscription_id = f"{self.sub_topic}-{obj.get('id')}"
+                should_enqueue = False
+                async with self.subscription_live_lock:
+                    if subscription_id not in self.subscription_live:
+                        should_enqueue = True
+
+                if should_enqueue:
+                    if self.subscription_queue.full():
+                        logger.warning(f"Subscription Queue FULL dropping subscription for {subscription_id}")
+                    else:
+                        await self.subscription_queue.put((self.main_topic, obj))
+
+                await self._push_message(self.main_topic, obj)
 
 def _drain_queue(queue):
     while True:
