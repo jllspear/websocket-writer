@@ -213,7 +213,7 @@ class WebSocketClient:
         token = await auth_manager.get_token()
 
         async with aiohttp.ClientSession() as session:
-            async with session.post(
+            async with session.get(
                     f"{self.sub_topic_from_api}/{self.main_topic.split("/")[-1]}",
                     headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"},
             ) as resp:
